@@ -5,7 +5,7 @@ cgitb.enable()
 import os
 import datetime
 
-
+dt = datetime.datetime.now()
 default = "No Value Present"
 
 
@@ -23,10 +23,10 @@ body = """<html>
 </body>
 </html>""".format(
     software=os.environ.get('SERVER_SOFTWARE', default),
-    script='aaaa',
-    month='bbbb',
-    date='cccc',
-    year='dddd',
-    client_ip='eeee'
+    script=os.environ.get('SCRIPT_NAME'),
+    month=dt.strftime("%B"),
+    date=dt.strftime("%d"),
+    year=dt.strftime("%Y"),
+    client_ip=os.environ.get("HTTP_REFERER")
 )
 print(body)

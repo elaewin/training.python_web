@@ -4,6 +4,10 @@ import cgitb
 
 cgitb.enable()
 
+form = cgi.FieldStorage()
+values = form.getlist('operand')
+total = sum(map(int, values))
+
 print("Content-type: text/plain")
 print()
-print("Your job is to make this work")
+print("The total is {}".format(total))
