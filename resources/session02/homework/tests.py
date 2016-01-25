@@ -3,6 +3,7 @@ import os
 import pathlib
 import socket
 import unittest
+import pdb
 
 
 CRLF = '\r\n'
@@ -289,7 +290,7 @@ class HTTPServerFunctionalTestCase(unittest.TestCase):
 
         In case of a socket error, fail and report the problem
         """
-        response = ''            
+        response = ''
         if not use_bytes:
             from simple_client import client
         else:
@@ -323,6 +324,7 @@ class HTTPServerFunctionalTestCase(unittest.TestCase):
 
     def test_webroot_directory_resources(self):
         """verify that directory uris are properly served"""
+        # pdb.set_trace()
         message_tmpl = CRLF.join(['GET {0} HTTP/1.1', 'Host: example.com', ''])
         root = "webroot"
         for directory, directories, files in os.walk(root):
