@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import datetime
+import pdb
 
+dt = datetime.datetime.now()
 default = "No Value Set"
 
 body = """<html>
@@ -18,14 +20,14 @@ body = """<html>
 def application(environ, start_response):
     import pprint
     pprint.pprint(environ)
-
+    # pdb.set_trace()
     response_body = body.format(
         software=environ.get('SERVER_SOFTWARE', default),
-        path="aaaa",
-        month="bbbb",
-        date="cccc",
-        year="dddd",
-        client_ip="eeee"
+        path=environ.get('PATH'),
+        month=dt.strftime("%B"),
+        date=dt.strftime("%d"),
+        year=dt.strftime("%Y"),
+        client_ip=environ.get('REMOTE_ADDR')
     )
     status = '200 OK'
 
