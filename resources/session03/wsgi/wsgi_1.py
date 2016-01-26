@@ -20,7 +20,7 @@ body = """<html>
 def application(environ, start_response):
     import pprint
     pprint.pprint(environ)
-    # pdb.set_trace()
+    pdb.set_trace()
     response_body = body.format(
         software=environ.get('SERVER_SOFTWARE', default),
         path=environ.get('PATH'),
