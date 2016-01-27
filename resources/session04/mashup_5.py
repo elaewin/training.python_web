@@ -4,7 +4,9 @@ import json
 import pathlib
 import re
 import requests
+from sys import argv
 
+script, number = argv
 
 INSPECTION_DOMAIN = 'http://info.kingcounty.gov'
 INSPECTION_PATH = '/health/ehs/foodsafety/inspections/Results.aspx'
@@ -40,7 +42,7 @@ def get_inspection_page(**kwargs):
 
 
 def parse_source(html):
-    parsed = BeautifulSoup(html)
+    parsed = BeautifulSoup(html, 'html5lib')
     return parsed
 
 
@@ -119,8 +121,8 @@ def get_score_data(elem):
 
 def result_generator(count):
     use_params = {
-        'Inspection_Start': '2/1/2013',
-        'Inspection_End': '2/1/2015',
+        'Inspection_Start': '01/26/2015',
+        'Inspection_End': '201/26/2016',
         'Zip_Code': '98101'
     }
     # html = get_inspection_page(**use_params)
@@ -128,7 +130,7 @@ def result_generator(count):
     parsed = parse_source(html)
     content_col = parsed.find("td", id="contentcol")
     data_list = restaurant_data_generator(content_col)
-    for data_div in data_list[:count]:
+    for data_div in data_list[:int(count)]:
         metadata = extract_restaurant_metadata(data_div)
         inspection_data = get_score_data(data_div)
         metadata.update(inspection_data)
@@ -157,7 +159,8 @@ def get_geojson(result):
 
 if __name__ == '__main__':
     total_result = {'type': 'FeatureCollection', 'features': []}
-    for result in result_generator(10):
+    for result in result_generator(number):
+        print(result)
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
     with open('my_map.json', 'w') as fh:
