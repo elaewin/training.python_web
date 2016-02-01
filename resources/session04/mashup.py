@@ -4,7 +4,9 @@ import json
 import pathlib
 import re
 import requests
-
+from sys import argv
+from collections import OrderedDict
+from operator import attrgetter, itemgetter
 
 INSPECTION_DOMAIN = 'http://info.kingcounty.gov'
 INSPECTION_PATH = '/health/ehs/foodsafety/inspections/Results.aspx'
@@ -40,7 +42,7 @@ def get_inspection_page(**kwargs):
 
 
 def parse_source(html):
-    parsed = BeautifulSoup(html)
+    parsed = BeautifulSoup(html, 'html5lib')
     return parsed
 
 
@@ -119,8 +121,8 @@ def get_score_data(elem):
 
 def result_generator(count):
     use_params = {
-        'Inspection_Start': '2/1/2013',
-        'Inspection_End': '2/1/2015',
+        'Inspection_Start': '01/26/2015',
+        'Inspection_End': '201/26/2016',
         'Zip_Code': '98101'
     }
     # html = get_inspection_page(**use_params)
@@ -128,10 +130,12 @@ def result_generator(count):
     parsed = parse_source(html)
     content_col = parsed.find("td", id="contentcol")
     data_list = restaurant_data_generator(content_col)
-    for data_div in data_list[:count]:
-        metadata = extract_restaurant_metadata(data_div)
+    for data_div in data_list[:int(count)]:
+        metadata = OrderedDict(extract_restaurant_metadata(data_div))
         inspection_data = get_score_data(data_div)
         metadata.update(inspection_data)
+        sorting_key = check_sorting()
+        metadata.move_to_end(sorting_key, last=False)
         yield metadata
 
 
@@ -151,14 +155,53 @@ def get_geojson(result):
         if isinstance(val, list):
             val = " ".join(val)
         inspection_data[key] = val
+    sorting_key = check_sorting()
+    inspection_data = OrderedDict(inspection_data)
+    inspection_data.move_to_end(sorting_key, last=False)
     geojson['properties'] = inspection_data
     return geojson
 
 
+def check_sorting():
+    if len(argv) >= 2:
+        criteria = argv[1]
+        if criteria == 'average':
+            return 'Average Score'
+        elif criteria == 'highscore' or 'high_score':
+            return 'High Score'
+        elif criteria == 'inspections' or 'total_inspections':
+            return 'Total Inspections'
+        else:
+            return criteria
+    else:
+        return 'Business Name'
+
+
+def sort_direction():
+    if argv >= 4:
+        direction = argv[3]
+        if direction == 'reverse':
+            return True
+    else:
+        return False
+
+
+def number_of_listings():
+    if len(argv) >= 3:
+        listings = argv[2]
+        return listings
+    else:
+        return 5
+
+    # sorted_metadata = sorted(metadata, key=attrgetter(metadata.values()), reverse=True)
+
+
 if __name__ == '__main__':
     total_result = {'type': 'FeatureCollection', 'features': []}
-    for result in result_generator(10):
+    for result in result_generator(int(number_of_listings())):
+        # print(result)
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
     with open('my_map.json', 'w') as fh:
+        print(total_result)
         json.dump(total_result, fh)
