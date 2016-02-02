@@ -5,8 +5,9 @@ import pathlib
 import re
 import requests
 from sys import argv
-from operator import attrgetter
 from collections import OrderedDict
+from operator import attrgetter, itemgetter
+import pdb
 
 INSPECTION_DOMAIN = 'http://info.kingcounty.gov'
 INSPECTION_PATH = '/health/ehs/foodsafety/inspections/Results.aspx'
@@ -111,11 +112,11 @@ def get_score_data(elem):
 
     if samples:
         average = total/float(samples)
-    data = {
-        u'Average Score': average,
-        u'High Score': high_score,
-        u'Total Inspections': samples
-    }
+    data = [
+        (u'Average Score', average),
+        (u'High Score', high_score),
+        (u'Total Inspections', samples)
+    ]
     return data
 
 
@@ -126,17 +127,27 @@ def result_generator(count):
         'Zip_Code': '98101'
     }
     # html = get_inspection_page(**use_params)
+    sorting_key, marker_type = check_sorting()
     html = load_inspection_page('inspection_page.html')
     parsed = parse_source(html)
     content_col = parsed.find("td", id="contentcol")
     data_list = restaurant_data_generator(content_col)
-    for data_div in data_list[:int(count)]:
-        metadata = OrderedDict(extract_restaurant_metadata(data_div))
+    for data_div in data_list[:count]:
+        metadata = extract_restaurant_metadata(data_div)
         inspection_data = get_score_data(data_div)
         metadata.update(inspection_data)
-        metadata.move_to_end(check_sorting(), last=False)
-        print(metadata)
+        # sorting_value = str(metadata.get(sorting_key))
         yield metadata
+
+
+def create_ordered_dict_and_sort(dictionary, key=None):
+    dictionary = OrderedDict(dictionary)
+    if key:
+        if key in dictionary:
+            dictionary.move_to_end(key, last=False)
+            return dictionary
+    else:
+        return dictionary
 
 
 def get_geojson(result):
@@ -155,39 +166,99 @@ def get_geojson(result):
         if isinstance(val, list):
             val = " ".join(val)
         inspection_data[key] = val
+    sorting_key, marker_type = check_sorting()
+    marker_value = inspection_data.get(sorting_key)
+    if marker_type == 'graduated':
+            inspection_data['marker-color'] = get_color_graduated(marker_value)
+    if marker_type == 'shaded':
+            inspection_data['marker-color'] = get_color_shaded(marker_value)
+    inspection_data = create_ordered_dict_and_sort(inspection_data, sorting_key)
+    geojson['sort_by'] = marker_value
     geojson['properties'] = inspection_data
-    # sorted(inspection_data, key=attrgetter(check_sorting()))
+    # print(geojson)
     return geojson
 
 
+def get_color_graduated(score):
+    if score >= 90:
+        return '#006400'
+    elif score >= 80:
+        return '#9acd32'
+    elif score >= 70:
+        return '#ffff00'
+    elif score >= 60:
+        return '#ffd700'
+    elif score >= 50:
+        return '#ffa500'
+    elif score >= 40:
+        return '#ff4500'
+    elif score >= 30:
+        return '#ff0000'
+    else:
+        return '#8b0000'
+
+
+def get_color_shaded(score):
+    if score >= 10:
+        return '#000066'
+    elif score >= 8:
+        return '#0000b3'
+    elif score >= 6:
+        return '#0000ff'
+    elif score >= 4:
+        return '#4d4dff'
+    elif score >= 2:
+        return '#b3b3ff'
+    elif score == 1:
+        return '#e5e5ff'
+    else:
+        return '#666699'
+
+
 def check_sorting():
-    # if argv[2]:
-    #     criteria = argv[2].lower()
-    #     if criteria == 'highscore':
-    #         return 'High Score'
-    #     elif criteria == 'average':
-    #         return 'Average Score'
-    #     elif criteria == 'mostinspections':
-    #         return 'Total Inspections'
-    #     else:
-    #         return argv[2]
-    # else:
-    return 'Business Name'
+    marker_type = None
+    if len(argv) >= 2:
+        criteria = argv[1]
+        if criteria == 'average':
+            marker_type = 'graduated'
+            return 'Average Score', marker_type
+        elif criteria == 'highscore' or criteria == 'high_score':
+            marker_type = 'graduated'
+            return 'High Score', marker_type
+        elif criteria == 'inspections' or criteria == 'most_inspections':
+            marker_type = 'shaded'
+            return 'Total Inspections', marker_type
+        else:
+            return criteria, marker_type
+    else:
+        return 'Business Name', marker_type
 
 
 def sort_direction():
-    if argv[3]:
-        if argv[3] == 'reverse':
+    if len(argv) >= 4:
+        direction = argv[3]
+        if direction == 'reverse':
             return True
     else:
         return False
 
 
+def number_of_listings():
+    if len(argv) >= 3:
+        listings = argv[2]
+        return listings
+    else:
+        return 5
+
+
 if __name__ == '__main__':
     total_result = {'type': 'FeatureCollection', 'features': []}
-    for result in result_generator(int(argv[1])):
-        # print(result)
+    direction = sort_direction()
+    for result in result_generator(int(number_of_listings())):
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
+    # sort_key = attrgetter(total_result.get('features').sort())
+    total_result['features'] = (total_result.get('features')).sort(key=attrgetter('properties'), reverse=direction)
+    # print(total_result)
     with open('my_map.json', 'w') as fh:
         json.dump(total_result, fh)
