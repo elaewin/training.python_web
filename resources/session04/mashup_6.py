@@ -172,7 +172,7 @@ def get_geojson(result):
             inspection_data['marker-color'] = get_color_graduated(marker_value)
     if marker_type == 'shaded':
             inspection_data['marker-color'] = get_color_shaded(marker_value)
-    inspection_data = create_ordered_dict_and_sort(inspection_data, sorting_key)
+    # inspection_data = create_ordered_dict_and_sort(inspection_data, sorting_key)
     geojson['sort_by'] = marker_value
     geojson['properties'] = inspection_data
     # print(geojson)
@@ -257,8 +257,10 @@ if __name__ == '__main__':
     for result in result_generator(int(number_of_listings())):
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
-    # sort_key = attrgetter(total_result.get('features').sort())
-    total_result['features'] = (total_result.get('features')).sort(key=attrgetter('properties'), reverse=direction)
-    # print(total_result)
+    # sort_key = attrgetter('attr')
+    total_result['features'] = sorted(total_result.get('features'), key=itemgetter('properties'), reverse=direction)
+    # for key, value in total_result.items():
+    #     print(key, value)
     with open('my_map.json', 'w') as fh:
+        print(total_result)
         json.dump(total_result, fh)
