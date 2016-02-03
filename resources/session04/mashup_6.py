@@ -128,26 +128,20 @@ def result_generator(count):
     }
     # html = get_inspection_page(**use_params)
     sorting_key, marker_type = check_sorting()
+    direction = sort_direction()
     html = load_inspection_page('inspection_page.html')
     parsed = parse_source(html)
     content_col = parsed.find("td", id="contentcol")
     data_list = restaurant_data_generator(content_col)
-    for data_div in data_list[:count]:
+    metadata_list = []
+    for data_div in data_list:
         metadata = extract_restaurant_metadata(data_div)
         inspection_data = get_score_data(data_div)
         metadata.update(inspection_data)
-        # sorting_value = str(metadata.get(sorting_key))
-        yield metadata
-
-
-def create_ordered_dict_and_sort(dictionary, key=None):
-    dictionary = OrderedDict(dictionary)
-    if key:
-        if key in dictionary:
-            dictionary.move_to_end(key, last=False)
-            return dictionary
-    else:
-        return dictionary
+        metadata_list.append(metadata)
+    # pdb.set_trace()
+    for record in sorted(metadata_list, key=itemgetter(sorting_key), reverse=direction)[:count]:
+        yield record
 
 
 def get_geojson(result):
@@ -172,8 +166,6 @@ def get_geojson(result):
             inspection_data['marker-color'] = get_color_graduated(marker_value)
     if marker_type == 'shaded':
             inspection_data['marker-color'] = get_color_shaded(marker_value)
-    # inspection_data = create_ordered_dict_and_sort(inspection_data, sorting_key)
-    geojson['sort_by'] = marker_value
     geojson['properties'] = inspection_data
     # print(geojson)
     return geojson
@@ -238,9 +230,9 @@ def sort_direction():
     if len(argv) >= 4:
         direction = argv[3]
         if direction == 'reverse':
-            return True
+            return False
     else:
-        return False
+        return True
 
 
 def number_of_listings():
@@ -253,11 +245,9 @@ def number_of_listings():
 
 if __name__ == '__main__':
     total_result = {'type': 'FeatureCollection', 'features': []}
-    direction = sort_direction()
     for result in result_generator(int(number_of_listings())):
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
-    total_result['features'] = sorted(total_result.get('features'), key=attrgetter('sort_by'), reverse=direction)
     with open('my_map.json', 'w') as fh:
         print(total_result)
         json.dump(total_result, fh)
