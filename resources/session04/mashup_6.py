@@ -257,10 +257,7 @@ if __name__ == '__main__':
     for result in result_generator(int(number_of_listings())):
         geojson = get_geojson(result)
         total_result['features'].append(geojson)
-    # sort_key = attrgetter('attr')
-    total_result['features'] = sorted(total_result.get('features'), key=itemgetter('properties'), reverse=direction)
-    # for key, value in total_result.items():
-    #     print(key, value)
+    total_result['features'] = sorted(total_result.get('features'), key=attrgetter('sort_by'), reverse=direction)
     with open('my_map.json', 'w') as fh:
         print(total_result)
         json.dump(total_result, fh)
